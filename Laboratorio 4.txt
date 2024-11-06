@@ -1,0 +1,110 @@
+Laboratorio 4
+
+Escenarios para el diseño de seguridad:
+Escenario 1: Pseudocódigo para el sistema de autenticación
+
+Ejemplo de pseudocódigo:
+FUNCTION authenticateUser(username, password):
+  QUERY database WITH username AND password
+  IF found RETURN True
+  ELSE RETURN False
+----------------------------------------------------------------------------------------------------------------------
+* El pseudocodigo dado plantea un esquema basico de autenticación, pero deja vulnerabilidades importantes.
+
+Inyección de SQL: En el código actual, el nombre de usuario y la contraseña se pasan directamente a la consulta de la base de datos. Esto es un riesgo directo para ataques de inyección de SQL.
+
+Solución: se deberian usar consultas parametrizadas o procedimientos almacenados. Esto evita que el usuario manipule la consulta SQL directa, asegurando que cualquier entrada se trate como un valor separado de la estructura de la consulta.
+
+
+// Ejemplo con consulta parametrizada
+QUERY database WITH parameterized(username) AND parameterized(password)
+
+
+*Almacenamiento Seguro de Contraseñas: 
+En el pseudocodigo, no hay ninguna mencion de hashing de contraseñas, lo cual es inseguro. Las contraseñas en texto plano son vulnerables y faciles y se pueden comprometer en caso de una brecha de seguridad. Almacenar las contraseñas en formato hash es esencial, y para esto, yo creo que los algoritmos seguros como bcrypt o Argon2, que además de ser seguros, añaden sal y un factor de trabajo que ayuda a mitigar ataques de fuerza bruta.
+
+
+
+FUNCTION authenticateUser(username, password):
+   QUERY hashedPassword FROM database WHERE username = parameterized(username)
+   IF bcrypt.compare(password, hashedPassword):
+      RETURN True
+   ELSE:
+      RETURN False
+
+
+*Registro de Intentos Fallidos: 
+Llevar un registro de intentos fallidos ayuda a detectar posibles ataques de fuerza bruta. Una práctica común es bloquear el acceso por un tiempo después de varios intentos fallidos. Por ejemplo, después de tres intentos incorrectos, el sistema podría imponer un bloqueo temporal para mitigar riesgos.
+
+
+
+
+-----------------------------------------------------------------------------------------------------------------------------------------
+
+
+Escenario 2: Esquema de autenticación JWT
+
+Esquema de diseño:
+
+DEFINE FUNCTION generateJWT(userCredentials):
+  IF validateCredentials(userCredentials):
+    SET tokenExpiration = currentTime + 3600 // Token expires in one hour
+    RETURN encrypt(userCredentials + tokenExpiration, secretKey)
+  ELSE:
+    RETURN error
+
+-----------------------------------------------------------------------------------------------------------------------------------------
+
+Escenario 2: Diseño de Autenticación JWT
+La autenticación basada en JWT es una forma segura y conveniente de manejar sesiones en aplicaciones modernas.
+
+Expiración de Tokens: Los tokens deben tener una vida útil limitada. Esto es clave, ya que si un token es robado, su tiempo de vida corto limita el daño que se puede causar. Por ejemplo, en la mayoría de los servicios de autenticación modernos, un token de acceso dura 15 minutos y se renueva mediante un token de refresco.
+
+
+SET tokenExpiration = currentTime + 900 // Token expira en 15 minutos
+
+
+
+Payload Minimalista: El payload de JWT debe contener solo la información mínima y necesaria para la validación, como el ID de usuario y roles. Evita incluir datos sensibles como el correo electrónico o el nombre completo, ya que el contenido del token puede ser decodificado sin necesidad de la clave secreta. En mi experiencia, muchos desarrolladores incluyen información innecesaria, lo cual es un riesgo; así que, mejor mantener solo los datos estrictamente necesarios.
+
+
+tokenPayload = { userId: user.id, roles: user.roles }
+
+
+
+Rotación de la Clave Secreta: Cambiar regularmente la clave secreta es una práctica recomendada, en especial para aplicaciones sensibles. La rotación de claves ayuda a mitigar el riesgo si la clave se compromete y permite invalidar tokens antiguos. Aunque requiere una estrategia de manejo de claves, la inversión en seguridad vale la pena.
+
+Revocación de Tokens: Un problema común con JWT es la falta de revocación, lo cual complica la gestión de sesiones en tiempo real. se puede implementar una lista de tokens revocados en el servidor y verificarla en cada solicitud. Esto añade una capa de control adicional para cuando se sabe que un token específico ha sido comprometido.
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Escenario 3: Plan de comunicación segura de datos
+
+Esquema de Protección de Datos:
+
+PLAN secureDataCommunication:
+  IMPLEMENT SSL/TLS for all data in transit
+  USE encrypted storage solutions for data at rest
+  ENSURE all data exchanges comply with HTTPS protocols
+
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Proteger tanto los datos en tránsito como en reposo es importantre para garantizar la seguridad de una aplicacion. Pienso que estas deben ser algunas mediads para esta parte:
+
+
+
+SSL/TLS en la Comunicación: 
+Toda comunicación de datos debe pasar por SSL/TLS, es decir, usar HTTPS en lugar de HTTP. Esto cifra los datos en tránsito, evitando que los atacantes puedan interceptar información crítica.
+
+Cifrado de Datos en Almacenamiento:
+ Los datos sensibles deben guardarse en un formato cifrado para proteger la privacidad en caso de brechas de seguridad. 
+
+Cumplimiento de Protocolos de Seguridad: 
+Es importante realizar revisiones periódicas para confirmar que las configuraciones de seguridad se mantengan al día. Como mínimo, se debe verificar que todo intercambio de datos cumple con HTTPS y que se aplican políticas de seguridad como HSTS para proteger contra ataques comunes de red.
+
+Protección de Claves y Contraseñas: 
+Finalmente, las claves de cifrado y contraseñas de acceso deben mantenerse en un gestor de secretos seguro (como AWS Secrets Manager o HashiCorp Vault), y no en el código fuente ni en archivos de configuración. Esto reduce la posibilidad de exposición accidental.
+
+
+
+
+
